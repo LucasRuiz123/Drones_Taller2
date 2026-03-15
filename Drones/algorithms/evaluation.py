@@ -47,48 +47,49 @@ def evaluation_function(state: GameState) -> float:
     if state.is_lose():
         return -1000.0
     
-    # Obtener información básica del estado
     score = state.get_score()
     drone_pos = state.get_drone_position()
     layout = state.get_layout()
     hunter_positions = state.get_hunter_positions()
     pending_deliveries = state.get_pending_deliveries()
     
-    # Inicializar componentes de evaluación
-    hunter_penalty = 0.0
-    delivery_bonus = 0.0
+    eval_score = score
     
-    # Calcular penalización por hunters cercanos
-    if hunter_positions:
-        min_hunter_distance = float('inf')
-        for hunter_pos in hunter_positions:
-            # Distancia BFS
-            distance = utils.bfs_distance(layout, drone_pos, hunter_pos, hunter_restricted=True)
-            if distance < min_hunter_distance:
-                min_hunter_distance = distance
-        
-        # Penalizar más si los hunters están muy cerca
-        if min_hunter_distance != float('inf'):
-            hunter_penalty = -100.0 / (min_hunter_distance)
-    
-    # Calcular bonificación por entregas cercanas
-    if pending_deliveries:
-        min_delivery_distance = float('inf')
-        for delivery_pos in pending_deliveries:
-            distance = utils.bfs_distance(layout, drone_pos, delivery_pos, hunter_restricted=False)
-            if distance < min_delivery_distance:
-                min_delivery_distance = distance
-        
-        # Bonificar más si las entregas están cerca
-        if min_delivery_distance != float('inf'):
-            delivery_bonus = 50.0 / (min_delivery_distance)
-  
-    final_score = score + hunter_penalty + delivery_bonus
-    
-    
-    if final_score > 1000.0:
-        final_score = 1000.0
-    elif final_score < -1000.0:
-        final_score = -1000.0
-    
-    return final_score
+    # Penalización por entregas pendientes
+    eval_score -= 100.0 * len(pending_deliveries)
+
+    # Cercanía a la entrega más próxima
+    min_delivery_dist = float('inf')
+    for delivery_pos in pending_deliveries:
+        dist = utils.bfs_distance(layout, drone_pos, delivery_pos, hunter_restricted=False)
+        if dist < min_delivery_dist:
+            min_delivery_dist = dist
+            
+    if min_delivery_dist != float('inf'):
+        # se suma 1 para evitar división por cero. 
+        eval_score += 60.0 / (min_delivery_dist + 1)
+
+    # Gestión del peligro de los cazadores
+    min_hunter_dist = float('inf')
+    for hunter_pos in hunter_positions:
+        dist = utils.bfs_distance(layout, drone_pos, hunter_pos, hunter_restricted=True)
+        if dist < min_hunter_dist:
+            min_hunter_dist = dist
+            
+    if min_hunter_dist != float('inf'):
+        if min_hunter_dist <= 2:
+            # Peligro inminente: penalización masiva para obligarlo a huir
+            eval_score -= 500.0 / (min_hunter_dist + 1)
+        elif min_hunter_dist <= 4:
+            # Riesgo moderado
+            eval_score -= 100.0 / (min_hunter_dist + 1)
+        elif min_hunter_dist >= 6:
+            # Posición segura. Recompensa por mantener distancia.
+            eval_score += 20.0
+
+    # Urgencia de entrega
+    # Si el dron está más cerca de la entrega que el cazador más cercano, se da un bono por ir a la entrega
+    if min_delivery_dist != float('inf') and min_hunter_dist != float('inf'):
+        if min_delivery_dist < min_hunter_dist:
+            eval_score += 40.0 / (min_delivery_dist + 1)
+    return max(-1000.0, min(1000.0, eval_score))
