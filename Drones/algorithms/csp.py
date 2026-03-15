@@ -58,8 +58,44 @@ def backtracking_fc(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     - Forward checking reduces the search space by detecting failures earlier than basic backtracking.
     """
     # TODO: Implement your code here
+    return backtrackingFC(csp, {})
+
+def backtrackingFC(csp, assignment):
+    if csp.is_complete(assignment):
+        return assignment
+    var = csp.get_unassigned_variables(assignment)[0]
+    for value in csp.domains[var]:
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+            removed = forward_checking(csp, var, value, assignment)
+            if removed is not None:
+                result = backtrackingFC(csp, assignment)
+                if result:
+                    return result
+            restore_domains(csp, removed)
+            csp.unassign(var, assignment)
+
     return None
 
+
+def forward_checking(csp, var, value, assignment):
+    removed = []
+    for neighbor in csp.get_neighbors(var):
+        if neighbor not in assignment:
+            for val in list(csp.domains[neighbor]):
+                if not csp.is_consistent(neighbor, val, assignment):
+                    csp.domains[neighbor].remove(val)
+                    removed.append((neighbor, val))
+            if len(csp.domains[neighbor]) == 0:
+                return None
+    return removed
+
+
+def restore_domains(csp, removed):
+    if removed is None:
+        return
+    for var, val in removed:
+        csp.domains[var].append(val)
 
 def backtracking_ac3(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     """
@@ -78,6 +114,7 @@ def backtracking_ac3(csp: DroneAssignmentCSP) -> dict[str, str] | None:
       - a backtrack function that integrates AC-3 into the search process.
     """
     # TODO: Implement your code here
+
 
     return None
 
