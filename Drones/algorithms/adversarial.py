@@ -65,8 +65,43 @@ class MinimaxAgent(MultiAgentSearchAgent):
         - The next agent is (agent_index + 1) % num_agents. Depth decreases after all agents have moved (full ply).
         - Return the ACTION (not the value) that maximizes the minimax value for the drone.
         """
-        # TODO: Implement your code here
-        return None
+        def minimax(state: GameState, depth: int, agent_index: int) -> float:
+            # Caso terminal
+            if depth == 0 or state.is_win() or state.is_lose():
+                return self.evaluation_function(state)
+            
+            # Siguiente agente
+            next_agent = (agent_index + 1) % state.get_num_agents()
+            if next_agent == 0:
+                next_depth = depth - 1
+            else:
+                next_depth = depth
+            
+            if agent_index == 0:  # Drone (MAX)
+                value = float("-inf")
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    value = max(value, minimax(successor, next_depth, next_agent))
+                return value
+            else:  # Hunter (MIN)
+                value = float("inf")
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    value = min(value, minimax(successor, next_depth, next_agent))
+                return value
+        
+        # Encontrar mejor acción para el drone
+        best_action = None
+        best_value = float("-inf")
+        
+        for action in state.get_legal_actions(0):
+            successor = state.generate_successor(0, action)
+            value = minimax(successor, self.depth, 1)
+            if value > best_value:
+                best_value = value
+                best_action = action
+        
+        return best_action
 
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
@@ -90,8 +125,53 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         - Update beta at MIN nodes: beta = min(beta, value).
         - Pass alpha and beta through the recursive calls.
         """
-        # TODO: Implement your code here (BONUS)
-        return None
+        def alphabeta(state: GameState, depth: int, agent_index: int, alpha: float, beta: float) -> float:
+            # es muy parecido a minimax, pero con alpha y beta
+            if depth == 0 or state.is_win() or state.is_lose():
+                return self.evaluation_function(state)
+    
+            next_agent = (agent_index + 1) % state.get_num_agents()
+            if next_agent == 0:
+                next_depth = depth - 1
+            else:
+                next_depth = depth
+    
+            if agent_index == 0:
+                value = float("-inf")
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    value = max(value, alphabeta(successor, next_depth, next_agent, alpha, beta))
+                    if value > beta: # Poda estricta
+                        return value
+                    alpha = max(alpha, value)
+                return value
+    
+            else:
+                value = float("inf")
+                for action in state.get_legal_actions(agent_index):
+                    successor = state.generate_successor(agent_index, action)
+                    value = min(value, alphabeta(successor, next_depth, next_agent, alpha, beta))
+                    if value < alpha: # Poda estricta
+                        return value
+                    beta = min(beta, value)
+                return value
+    
+        # Inicio de la búsqueda para el drone (MAX)
+        best_action = None
+        best_value = float("-inf")
+        alpha = float("-inf")
+        beta = float("inf")
+    
+        for action in state.get_legal_actions(0):
+            successor = state.generate_successor(0, action)
+            value = alphabeta(successor, self.depth, 1, alpha, beta)
+            
+            if value > best_value:
+                best_value = value
+                best_action = action
+            alpha = max(alpha, best_value)
+    
+        return best_action
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):

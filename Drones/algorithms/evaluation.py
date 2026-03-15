@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-
+import algorithms.utils as utils
 
 if TYPE_CHECKING:
     from world.game_state import GameState
@@ -41,5 +41,54 @@ def evaluation_function(state: GameState) -> float:
     - Consider edge cases: no pending deliveries, no hunters nearby.
     - A good evaluation function balances delivery progress with hunter avoidance.
     """
-    # TODO: Implement your code here
-    return 0.0
+    # Casos terminales
+    if state.is_win():
+        return 1000.0
+    if state.is_lose():
+        return -1000.0
+    
+    # Obtener información básica del estado
+    score = state.get_score()
+    drone_pos = state.get_drone_position()
+    layout = state.get_layout()
+    hunter_positions = state.get_hunter_positions()
+    pending_deliveries = state.get_pending_deliveries()
+    
+    # Inicializar componentes de evaluación
+    hunter_penalty = 0.0
+    delivery_bonus = 0.0
+    
+    # Calcular penalización por hunters cercanos
+    if hunter_positions:
+        min_hunter_distance = float('inf')
+        for hunter_pos in hunter_positions:
+            # Distancia BFS
+            distance = utils.bfs_distance(layout, drone_pos, hunter_pos, hunter_restricted=True)
+            if distance < min_hunter_distance:
+                min_hunter_distance = distance
+        
+        # Penalizar más si los hunters están muy cerca
+        if min_hunter_distance != float('inf'):
+            hunter_penalty = -100.0 / (min_hunter_distance)
+    
+    # Calcular bonificación por entregas cercanas
+    if pending_deliveries:
+        min_delivery_distance = float('inf')
+        for delivery_pos in pending_deliveries:
+            distance = utils.bfs_distance(layout, drone_pos, delivery_pos, hunter_restricted=False)
+            if distance < min_delivery_distance:
+                min_delivery_distance = distance
+        
+        # Bonificar más si las entregas están cerca
+        if min_delivery_distance != float('inf'):
+            delivery_bonus = 50.0 / (min_delivery_distance)
+  
+    final_score = score + hunter_penalty + delivery_bonus
+    
+    
+    if final_score > 1000.0:
+        final_score = 1000.0
+    elif final_score < -1000.0:
+        final_score = -1000.0
+    
+    return final_score
