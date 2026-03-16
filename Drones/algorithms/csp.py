@@ -116,8 +116,54 @@ def backtracking_ac3(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     # TODO: Implement your code here
 
 
+    if not AC_3(csp):
+        return None
+    return backtrack_AC3(csp, {})
+
+def backtrack_AC3(csp, assignment):
+    if csp.is_complete(assignment):
+        return assignment
+    var = csp.get_unassigned_variables(assignment)[0]
+    for value in list(csp.domains[var]):
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+            saved_domains = {v: list(csp.domains[v]) for v in csp.variables}
+            queue = [(neighbor, var) for neighbor in csp.get_neighbors(var)]
+            if AC_3(csp, queue):
+                result = backtrack_AC3(csp, assignment)
+                if result:
+                    return result
+            csp.domains = saved_domains
+            csp.unassign(var, assignment)
     return None
 
+
+def AC_3(csp, queue=None):
+    if queue is None:
+        queue = [(Xi, Xj) for Xi in csp.variables for Xj in csp.get_neighbors(Xi)]
+    while queue:
+        Xi, Xj = queue.pop()
+        if revise(csp, Xi, Xj):
+            if len(csp.domains[Xi]) == 0:
+                return False
+            for Xk in csp.get_neighbors(Xi):
+                if Xk != Xj:
+                    queue.append((Xk, Xi))
+    return True
+
+
+def revise(csp, Xi, Xj):
+    revised = False
+    for x in list(csp.domains[Xi]):
+        supported = False
+        for y in csp.domains[Xj]:
+            if csp.is_consistent(Xi, x, {Xj: y}) and csp.is_consistent(Xj, y, {Xi: x}):
+                supported = True
+                break
+        if not supported:
+            csp.domains[Xi].remove(x)
+            revised = True
+    return revised
 
 def backtracking_mrv_lcv(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     """
